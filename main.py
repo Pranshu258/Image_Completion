@@ -42,14 +42,14 @@ def get_patches(image, bbox, hole):
     start = time()
     indices, patches = [], []
     rows, cols = image.shape
-    for i in xrange(bbox[2]+4, bbox[3]-4):
-        for j in xrange(bbox[0]+4, bbox[1]-4):
-            if i not in xrange(hole[2]-4, hole[3]+4) and j not in xrange(hole[0]-4, hole[1]+4):
+    for i in xrange(bbox[2]+cfg.PATCH_SIZE/2, bbox[3]-cfg.PATCH_SIZE/2):
+        for j in xrange(bbox[0]+cfg.PATCH_SIZE/2, bbox[1]-cfg.PATCH_SIZE/2):
+            if i not in xrange(hole[2]-cfg.PATCH_SIZE/2, hole[3]+cfg.PATCH_SIZE/2) and j not in xrange(hole[0]-cfg.PATCH_SIZE/2, hole[1]+cfg.PATCH_SIZE/2):
                 indices.append([i,j])
-                patches.append(image[i-4:i+4, j-4:j+4])
+                patches.append(image[i-cfg.PATCH_SIZE/2:i+cfg.PATCH_SIZE/2, j-cfg.PATCH_SIZE/2:j+cfg.PATCH_SIZE/2])
     end = time()
     print "get_patches execution time: ", end - start
-    return np.array(indices), np.array(patches)
+    return np.array(indices), np.array(patches).reshape(len(patches), cfg.PATCH_SIZE**2)
 
 
 def main(imageFile, maskFile):
