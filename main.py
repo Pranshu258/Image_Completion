@@ -6,6 +6,8 @@ A Python Implementation - Pranshu Gupta and Shrija Mishra
 import cv2
 import sys
 import numba
+import scipy
+import kdtree
 import numpy as np
 import config as cfg
 from time import time
@@ -49,7 +51,7 @@ def get_patches(image, bbox, hole):
                 patches.append(image[i-cfg.PATCH_SIZE/2:i+cfg.PATCH_SIZE/2, j-cfg.PATCH_SIZE/2:j+cfg.PATCH_SIZE/2])
     end = time()
     print "get_patches execution time: ", end - start
-    return np.array(indices), np.array(patches).reshape(len(patches), cfg.PATCH_SIZE**2)
+    return np.array(indices), np.array(patches, dtype='int64').reshape(len(patches), cfg.PATCH_SIZE**2)
 
 
 def main(imageFile, maskFile):
@@ -63,8 +65,14 @@ def main(imageFile, maskFile):
     image = cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE)
     mask = cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE)
     bb = get_bounding_box(mask)
+    bbwidth = bb[3] - bb[2]
+    bbheight = bb[1] - bb[0]
     sd = get_search_domain(image.shape, bb)
     indices, patches = get_patches(image, sd, bb)
+    kd = scipy.spatial.KDTree(patches, leafsize=10)
+    result = kd.query(x=patches[:10], k=10)
+    print result
+    
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
