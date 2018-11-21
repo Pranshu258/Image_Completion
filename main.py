@@ -7,7 +7,7 @@ import cv2
 import sys
 import numba
 import scipy
-import kdtree
+import math
 import numpy as np
 import config as cfg
 from time import time
@@ -53,6 +53,21 @@ def get_patches(image, bbox, hole):
     print "get_patches execution time: ", end - start
     return np.array(indices), np.array(patches, dtype='int64').reshape(len(patches), cfg.PATCH_SIZE**2)
 
+def get_offsets(indices, patches, tau):
+    start = time()
+    offsets = np.zeros((len(patches),2))
+    kd = scipy.spatial.KDTree(patches, leafsize=10)
+    distances, neighbors = kd.query(x=patches, k=10)
+    for i in xrange(len(patches)):
+        for j in xrange(10):
+            dist = ((indices[i][0]-indices[neighbors[i][j]][0])**2 + (indices[i][1]-indices[neighbors[i][j]][1])**2)**0.5
+            if dist >= tau:
+                offsets[i] = [indices[neighbors[i][j]][0] - indices[i][0], indices[neighbors[i][j]][1] - indices[i][1]]
+                break
+    end = time()
+    print "get_offsets execution time: ", end - start
+    return offsets
+
 
 def main(imageFile, maskFile):
     """
@@ -69,9 +84,7 @@ def main(imageFile, maskFile):
     bbheight = bb[1] - bb[0]
     sd = get_search_domain(image.shape, bb)
     indices, patches = get_patches(image, sd, bb)
-    kd = scipy.spatial.KDTree(patches, leafsize=10)
-    result = kd.query(x=patches[:10], k=10)
-    print result
+    offsets = get_offsets(indices, patches, max(bbheight, bbwidth)/15)
     
 
 if __name__ == "__main__":
