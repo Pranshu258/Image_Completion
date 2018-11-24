@@ -1,4 +1,7 @@
-| get_bounding_box | get_search_domain | get_patches | reduce_dimension | get_offsets |
-|:---:|:---:|:---:|:---:|:---:|
-|  0.004 | 0.0 | 0.6 | 0.2 | 23.4 |
-|  0.004 | 0.0 | 0.2 | 1.5 | 23.4 |
+| Method |Speed (s)|
+|:---|:---|
+| get_bounding_box | 0.004
+| get_search_domain | 0.0
+| get_patches | 0.6 >> 0.2 >> 0.14
+| reduce_dimension | 0.2 >> 1.5 >> 1.6
+| get_offsets | 23.4 >> 22.9 >> 16

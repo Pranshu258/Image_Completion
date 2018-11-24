@@ -65,7 +65,7 @@ def reduce_dimension(patches):
 def get_offsets(patches):
     start = time()
     kd = kdtree.KDTree(patches, leafsize=cfg.KDT_LEAF_SIZE, tau=cfg.TAU, deflat_factor=cfg.DEFLAT_FACTOR)
-    dist, indices = kd.query(patches)
+    dist, offsets = kdtree.get_annf_offsets(patches, kd.tree, cfg.DEFLAT_FACTOR, cfg.TAU)
     end = time()
     print "get_offsets execution time: ", end - start
     return
