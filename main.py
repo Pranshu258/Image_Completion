@@ -5,13 +5,11 @@ A Python Implementation - Pranshu Gupta and Shrija Mishra
 
 import cv2
 import sys
-import numba
-import scipy
-import math
 import numpy as np
 import config as cfg
 from time import time
-from sklearn.feature_extraction import image
+from sklearn.decomposition import PCA
+import kdtree
 
 def get_bounding_box(mask):
     """
@@ -32,6 +30,7 @@ def get_bounding_box(mask):
 def get_search_domain(shape, bbox):
     """
     get a rectangle that is 3 times larger (in length) than the bounding box of the hole
+    this is the region which will be used for the extracting the patches
     """
     start = time()
     col_min, col_max = max(0, 2*bbox[0] - bbox[1]), min(2*bbox[1] - bbox[0], shape[1]-1)
@@ -41,33 +40,51 @@ def get_search_domain(shape, bbox):
     return col_min, col_max, row_min, row_max
 
 def get_patches(image, bbox, hole):
+    """
+    get the patches from the search region in the input image
+    """
     start = time()
     indices, patches = [], []
     rows, cols = image.shape
     for i in xrange(bbox[2]+cfg.PATCH_SIZE/2, bbox[3]-cfg.PATCH_SIZE/2):
         for j in xrange(bbox[0]+cfg.PATCH_SIZE/2, bbox[1]-cfg.PATCH_SIZE/2):
-            if i not in xrange(hole[2]-cfg.PATCH_SIZE/2, hole[3]+cfg.PATCH_SIZE/2) and j not in xrange(hole[0]-cfg.PATCH_SIZE/2, hole[1]+cfg.PATCH_SIZE/2):
-                indices.append([i,j])
-                patches.append(image[i-cfg.PATCH_SIZE/2:i+cfg.PATCH_SIZE/2, j-cfg.PATCH_SIZE/2:j+cfg.PATCH_SIZE/2])
+            indices.append([i,j])
+            patches.append(image[i-cfg.PATCH_SIZE/2:i+cfg.PATCH_SIZE/2, j-cfg.PATCH_SIZE/2:j+cfg.PATCH_SIZE/2])
     end = time()
     print "get_patches execution time: ", end - start
     return np.array(indices), np.array(patches, dtype='int64').reshape(len(patches), cfg.PATCH_SIZE**2)
 
-def get_offsets(indices, patches, tau):
+def reduce_dimension(patches):
     start = time()
-    offsets = np.zeros((len(patches),2))
-    kd = scipy.spatial.KDTree(patches, leafsize=10)
-    distances, neighbors = kd.query(x=patches, k=10)
-    for i in xrange(len(patches)):
-        for j in xrange(10):
-            dist = ((indices[i][0]-indices[neighbors[i][j]][0])**2 + (indices[i][1]-indices[neighbors[i][j]][1])**2)**0.5
-            if dist >= tau:
-                offsets[i] = [indices[neighbors[i][j]][0] - indices[i][0], indices[neighbors[i][j]][1] - indices[i][1]]
-                break
+    pca = PCA(n_components=cfg.PCA_COMPONENTS)
+    reduced_patches = pca.fit_transform(patches)
+    end = time()
+    print "reduce_dimension execution time: ", end - start
+    return reduced_patches
+
+def get_offsets(patches):
+    start = time()
+    kd = kdtree.KDTree(patches, leafsize=cfg.KDT_LEAF_SIZE, tau=cfg.TAU, deflat_factor=cfg.DEFLAT_FACTOR)
+    dist, indices = kd.query(patches)
     end = time()
     print "get_offsets execution time: ", end - start
-    return offsets
+    return
 
+def get_offset_statistics(offsets):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    x, y = offsets[0,:], offsets[:,0]
+    hist, xedges, yedges = np.histogram2d(x, y, bins = 10, range=[[0, 4], [0, 4]])
+    # xpos, ypos = np.meshgrid(xedges[:-1] + 0.25, yedges[:-1] + 0.25)
+    # xpos = xpos.flatten('F')
+    # ypos = ypos.flatten('F')
+    # zpos = np.zeros_like(xpos)
+    # # Construct arrays with the dimensions for the 16 bars.
+    # dx = 0.5 * np.ones_like(zpos)
+    # dy = dx.copy()
+    # dz = hist.flatten()
+    # ax.bar3d(xpos, ypos, zpos, dx, dy, dz, color='b', zsort='average')
+    # plt.show()
 
 def main(imageFile, maskFile):
     """
@@ -82,9 +99,13 @@ def main(imageFile, maskFile):
     bb = get_bounding_box(mask)
     bbwidth = bb[3] - bb[2]
     bbheight = bb[1] - bb[0]
+    cfg.TAU = max(bbwidth, bbheight)/15
+    cfg.DEFLAT_FACTOR = image.shape[1]
     sd = get_search_domain(image.shape, bb)
     indices, patches = get_patches(image, sd, bb)
-    offsets = get_offsets(indices, patches, max(bbheight, bbwidth)/15)
+    reducedPatches = reduce_dimension(patches)
+    offsets = get_offsets(reducedPatches)
+    # dominantOffset = get_offset_statistics(offsets)
     
 
 if __name__ == "__main__":
