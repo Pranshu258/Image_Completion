@@ -230,7 +230,7 @@ class KDTree(object):
     sort of calculation.
 
     """
-    def __init__(self, data, leafsize=10):
+    def __init__(self, data, deflat_factor, leafsize=10, tau=0):
         self.data = np.asarray(data)
         self.n, self.m = np.shape(self.data)
         self.leafsize = int(leafsize)
@@ -238,7 +238,8 @@ class KDTree(object):
             raise ValueError("leafsize must be at least 1")
         self.maxes = np.amax(self.data,axis=0)
         self.mins = np.amin(self.data,axis=0)
-
+        self.tau = tau
+        self.deflat_factor = deflat_factor
         self.tree = self.__build(np.arange(self.n), self.maxes, self.mins)
 
     class node(object):
@@ -315,7 +316,7 @@ class KDTree(object):
                     self.__build(idx[less_idx],lessmaxes,mins),
                     self.__build(idx[greater_idx],maxes,greatermins))
 
-    def __query(self, x, k=1, eps=0, p=2, distance_upper_bound=np.inf):
+    def __query(self, x, q_index, k=1, eps=0, p=2, distance_upper_bound=np.inf):
 
         side_distances = np.maximum(0,np.maximum(x-self.maxes,self.mins-x))
         if p != np.inf:
@@ -351,15 +352,16 @@ class KDTree(object):
             min_distance, side_distances, node = heappop(q)
             if isinstance(node, KDTree.leafnode):
                 # brute-force
-                data = self.data[node.idx]
-                ds = minkowski_distance_p(data,x[np.newaxis,:],p)
-                for i in range(len(ds)):
-                    if ds[i] < distance_upper_bound:
-                        if len(neighbors) == k:
-                            heappop(neighbors)
-                        heappush(neighbors, (-ds[i], node.idx[i]))
-                        if len(neighbors) == k:
-                            distance_upper_bound = -neighbors[0][0]
+                data = self.data[[ind for ind in node.idx if (ind/self.deflat_factor-q_index/self.deflat_factor > self.tau and ind%self.deflat_factor-q_index%self.deflat_factor > self.tau)]]
+                if len(data) > 0:
+                    ds = minkowski_distance_p(data,x[np.newaxis,:],p)
+                    for i in range(len(ds)):
+                        if ds[i] < distance_upper_bound:
+                            if len(neighbors) == k:
+                                heappop(neighbors)
+                            heappush(neighbors, (-ds[i], node.idx[i]))
+                            if len(neighbors) == k:
+                                distance_upper_bound = -neighbors[0][0]
             else:
                 # we don't push cells that are too far onto the queue at all,
                 # but since the distance_upper_bound decreases, we might get
@@ -397,7 +399,7 @@ class KDTree(object):
         else:
             return sorted([((-d)**(1./p),i) for (d,i) in neighbors])
 
-    def query(self, x, k=1, eps=0, p=2, distance_upper_bound=np.inf):
+    def query(self, x, k=1, eps=0, p=2, distance_upper_bound=np.inf, hole=[0,0]):
         """
         Query the kd-tree for nearest neighbors
 
@@ -503,7 +505,7 @@ class KDTree(object):
             else:
                 raise ValueError("Requested %s nearest neighbors; acceptable numbers are integers greater than or equal to one, or None")
             for c in np.ndindex(retshape):
-                hits = self.__query(x[c], k=k, eps=eps, p=p, distance_upper_bound=distance_upper_bound)
+                hits = self.__query(x[c], k=k, eps=eps, p=p, distance_upper_bound=distance_upper_bound, q_index=c[0])
                 if k is None:
                     dd[c] = [d for (d,i) in hits]
                     ii[c] = [i for (d,i) in hits]
