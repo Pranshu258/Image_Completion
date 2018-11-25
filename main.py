@@ -13,6 +13,7 @@ from time import time
 from scipy import ndimage
 import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
+from mpl_toolkits.mplot3d import axes3d, Axes3D
 
 def GetBoundingBox(mask):
     """
@@ -24,7 +25,7 @@ def GetBoundingBox(mask):
     a = np.where(mask != 0)
     bbox = np.min(a[0]), np.max(a[0]), np.min(a[1]), np.max(a[1])
     if cfg.PRINT_BB_IMAGE:
-        cv2.rectangle(mask, (bbox[2], bbox[0]), (bbox[3], bbox[1]), (0,0,255), 1)
+        cv2.rectangle(mask, (bbox[2], bbox[0]), (bbox[3], bbox[1]), (255,255,255), 1)
         cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + cfg.BB_IMAGE_SUFFIX, mask)
     end = time()
     print "GetBoundingBox execution time: ", end - start
@@ -73,29 +74,40 @@ def GetOffsets(patches):
     print "GetOffsets execution time: ", end - start
     return offsets
 
+def PlotHistogram(x,y,z):
+    data_array = np.array(z)
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    x_data, y_data = np.meshgrid( np.arange(data_array.shape[1]),np.arange(data_array.shape[0]) )
+    x_data = x_data.flatten()
+    y_data = y_data.flatten()
+    z_data = data_array.flatten()
+    #ax.bar3d(x_data, y_data, np.zeros(len(z_data)), 1,1,z_data)
+    ax.scatter(x_data, y_data, z_data)
+    plt.show()
+
 def GetKDominantOffsets(offsets, K, height, width):
+    start = time()
     x, y = [offset[0] for offset in offsets if offset != None], [offset[1] for offset in offsets if offset != None]
     bins = [[i for i in range(np.min(x),np.max(x))],[i for i in xrange(np.min(y),np.max(y))]]
     hist, xedges, yedges = np.histogram2d(x, y, bins=bins)
     hist = hist.T
-    fig = plt.figure(figsize=(10, 10))
-    ax = fig.add_subplot(111, title='imshow: square bins')
-    plt.imshow(hist, interpolation='nearest', origin='low',extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]])
     smooth_hist = ndimage.filters.gaussian_filter(hist,2**0.5)
-    plt.imshow(smooth_hist, interpolation='nearest', origin='low',extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]])
-    plt.show()
-	# Pick the best 60 local maxima
+    PlotHistogram(xedges, yedges, smooth_hist)
+    # Pick the best 60 local maxima
     peaks = {}
     for i in range(4,len(smooth_hist)):
         for j in range(4,len(smooth_hist[0])):
             max_in_box = np.max(smooth_hist[i-4:i+4, j-4:j+4])
             if max_in_box != smooth_hist[i][j]:
                 peaks[(i-height,j-width)] = smooth_hist[i][j]
-	# Sort these local maxima and return top 60
-	sorted_peaks = sorted(peaks.items(), key = operator.itemgetter(1))
-	sorted_peaks = sorted_peaks[-1*K:]
-	peak_offsets = [p[0] for p in sorted_peaks]
-	return peak_offsets 
+    # Sort these local maxima and return top 60
+    sorted_peaks = sorted(peaks.items(), key = operator.itemgetter(1))
+    sorted_peaks = sorted_peaks[-1*K:]
+    peak_offsets = [p[0] for p in sorted_peaks]
+    end = time()
+    print "GetKDominantOffsets execution time: ", end - start
+    return peak_offsets 
 
 
 def main(imageFile, maskFile):
@@ -118,6 +130,7 @@ def main(imageFile, maskFile):
     reducedPatches = ReduceDimension(patches)
     offsets = GetOffsets(reducedPatches)
     kDominantOffset = GetKDominantOffsets(offsets, 60, image.shape[0], image.shape[1])
+    print kDominantOffset
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
