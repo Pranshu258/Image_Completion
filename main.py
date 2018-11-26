@@ -76,14 +76,19 @@ def GetOffsets(patches):
 def GetKDominantOffsets(offsets, K, height, width):
     start = time()
     x, y = [offset[0] for offset in offsets if offset != None], [offset[1] for offset in offsets if offset != None]
-    bins = [[i for i in range(np.min(x),np.max(x))],[i for i in xrange(np.min(y),np.max(y))]]
+    bins = [[i for i in range(np.min(x),np.max(x))], [i for i in xrange(np.min(y),np.max(y))]]
     hist, xedges, yedges = np.histogram2d(x, y, bins=bins)
     hist = hist.T
+    # plot.PlotHistogram2D(hist, xedges, yedges)
     p, q = np.where(hist == cv2.dilate(hist, np.ones(8))) # Non Maximal Suppression
     nonMaxSuppressedHist = np.zeros(hist.shape)
     nonMaxSuppressedHist[p, q] = hist[p, q]
+    # plot.PlotHistogram2D(nonMaxSuppressedHist, xedges, yedges)
     p, q = np.where(nonMaxSuppressedHist >= np.partition(nonMaxSuppressedHist.flatten(), -K)[-K])
-    peakOffsets, freq = np.array([[i+xedges[0], j+yedges[0]] for (i, j) in zip(p, q)], dtype="int64"), nonMaxSuppressedHist[p, q].flatten()
+    peakHist = np.zeros(hist.shape)
+    peakHist[p, q] = nonMaxSuppressedHist[p, q]
+    # plot.PlotHistogram2D(peakHist, xedges, yedges)
+    peakOffsets, freq = np.array([[xedges[j], yedges[i]] for (i, j) in zip(p, q)], dtype="int64"), nonMaxSuppressedHist[p, q].flatten()
     end = time()
     # plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
     print "GetKDominantOffsets execution time: ", end - start

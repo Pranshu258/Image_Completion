@@ -206,5 +206,5 @@ def get_annf_offsets(queries, root, cols, tau):
                 if dist < distances[i]:
                     distances[i] = dist
                     offsets[i] = [data[j]//cols - i//cols, data[j]%cols - i%cols]
-    return distances, np.array(offsets)      
+    return distances, offsets    
 

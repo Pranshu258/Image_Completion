@@ -17,7 +17,7 @@ def PlotHistogram3D(x, y, z):
 def PlotHistogram2D(hist, xedges, yedges):
     fig = plt.figure(figsize=(7, 3)) 
     ax = fig.add_subplot(111, title='Offset Histogram: HeatMap') 
-    plt.imshow(hist, interpolation='nearest', origin='low',extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]])
+    plt.imshow(hist, interpolation='nearest', origin='low', extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]])
     plt.show()
 
 def ScatterPlot3D(x, y, z, domain):
