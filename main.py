@@ -5,15 +5,14 @@ A Python Implementation - Pranshu Gupta and Shrija Mishra
 
 import cv2
 import sys
+import plot
 import kdtree
 import operator
 import numpy as np
 import config as cfg
 from time import time
 from scipy import ndimage
-import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
-from mpl_toolkits.mplot3d import axes3d, Axes3D
 
 def GetBoundingBox(mask):
     """
@@ -74,40 +73,21 @@ def GetOffsets(patches):
     print "GetOffsets execution time: ", end - start
     return offsets
 
-def PlotHistogram(x,y,z):
-    data_array = np.array(z)
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    x_data, y_data = np.meshgrid( np.arange(data_array.shape[1]),np.arange(data_array.shape[0]) )
-    x_data = x_data.flatten()
-    y_data = y_data.flatten()
-    z_data = data_array.flatten()
-    #ax.bar3d(x_data, y_data, np.zeros(len(z_data)), 1,1,z_data)
-    ax.scatter(x_data, y_data, z_data)
-    plt.show()
-
 def GetKDominantOffsets(offsets, K, height, width):
     start = time()
     x, y = [offset[0] for offset in offsets if offset != None], [offset[1] for offset in offsets if offset != None]
     bins = [[i for i in range(np.min(x),np.max(x))],[i for i in xrange(np.min(y),np.max(y))]]
     hist, xedges, yedges = np.histogram2d(x, y, bins=bins)
     hist = hist.T
-    smooth_hist = ndimage.filters.gaussian_filter(hist,2**0.5)
-    PlotHistogram(xedges, yedges, smooth_hist)
-    # Pick the best 60 local maxima
-    peaks = {}
-    for i in range(4,len(smooth_hist)):
-        for j in range(4,len(smooth_hist[0])):
-            max_in_box = np.max(smooth_hist[i-4:i+4, j-4:j+4])
-            if max_in_box != smooth_hist[i][j]:
-                peaks[(i-height,j-width)] = smooth_hist[i][j]
-    # Sort these local maxima and return top 60
-    sorted_peaks = sorted(peaks.items(), key = operator.itemgetter(1))
-    sorted_peaks = sorted_peaks[-1*K:]
-    peak_offsets = [p[0] for p in sorted_peaks]
+    p, q = np.where(hist == cv2.dilate(hist, np.ones(8))) # Non Maximal Suppression
+    nonMaxSuppressedHist = np.zeros(hist.shape)
+    nonMaxSuppressedHist[p, q] = hist[p, q]
+    p, q = np.where(nonMaxSuppressedHist >= np.partition(nonMaxSuppressedHist.flatten(), -K)[-K])
+    peakOffsets, freq = np.array([[i+xedges[0], j+yedges[0]] for (i, j) in zip(p, q)], dtype="int64"), nonMaxSuppressedHist[p, q].flatten()
     end = time()
+    # plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
     print "GetKDominantOffsets execution time: ", end - start
-    return peak_offsets 
+    return peakOffsets 
 
 
 def main(imageFile, maskFile):
@@ -130,7 +110,6 @@ def main(imageFile, maskFile):
     reducedPatches = ReduceDimension(patches)
     offsets = GetOffsets(reducedPatches)
     kDominantOffset = GetKDominantOffsets(offsets, 60, image.shape[0], image.shape[1])
-    print kDominantOffset
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
