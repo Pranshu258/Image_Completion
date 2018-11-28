@@ -99,7 +99,7 @@ class KDTree(object):
     sort of calculation.
 
     """
-    def __init__(self, data, deflat_factor, leafsize=10, tau=0):
+    def __init__(self, data, leafsize=10, tau=0):
         self.data = np.asarray(data)
         self.n, self.m = np.shape(self.data)
         self.leafsize = int(leafsize)
@@ -108,7 +108,6 @@ class KDTree(object):
         self.maxes = np.amax(self.data,axis=0)
         self.mins = np.amin(self.data,axis=0)
         self.tau = tau
-        self.deflat_factor = deflat_factor
         self.tree = self.__build(np.arange(self.n), self.maxes, self.mins)
 
     class node(object):
@@ -192,7 +191,7 @@ def get_query_leaf(x, node):
         else:
             return get_query_leaf(x, node.greater)
 
-def get_annf_offsets(queries, root, cols, tau):
+def get_annf_offsets(queries, indices, root, tau):
     leaves = [None]*len(queries)
     offsets = [None]*len(queries)
     distances = np.full(len(queries), np.inf)
@@ -201,10 +200,10 @@ def get_annf_offsets(queries, root, cols, tau):
         if i-1 > 0:
             data = np.concatenate((data, leaves[i-1]))
         for j in xrange(len(data)):
-            if np.abs(i/cols - data[j]/cols) > tau and np.abs(i%cols - data[j]%cols) > tau:
+            if np.abs(indices[i][0] - indices[data[j]][0]) > tau and np.abs(indices[i][1] - indices[data[j]][1]) > tau:
                 dist = minkowski_distance_p(queries[i], queries[data[j]])
                 if dist < distances[i]:
                     distances[i] = dist
-                    offsets[i] = [data[j]//cols - i//cols, data[j]%cols - i%cols]
+                    offsets[i] = [indices[data[j]][0] - indices[i][0], indices[data[j]][1] - indices[i][1]]
     return distances, offsets    
 

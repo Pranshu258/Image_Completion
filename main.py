@@ -7,6 +7,7 @@ import cv2
 import sys
 import plot
 import kdtree
+import energy
 import operator
 import numpy as np
 import config as cfg
@@ -51,8 +52,9 @@ def GetPatches(image, bbox, hole):
     rows, cols = image.shape
     for i in xrange(bbox[2]+cfg.PATCH_SIZE/2, bbox[3]-cfg.PATCH_SIZE/2):
         for j in xrange(bbox[0]+cfg.PATCH_SIZE/2, bbox[1]-cfg.PATCH_SIZE/2):
-            indices.append([i,j])
-            patches.append(image[i-cfg.PATCH_SIZE/2:i+cfg.PATCH_SIZE/2, j-cfg.PATCH_SIZE/2:j+cfg.PATCH_SIZE/2])
+            if i not in xrange(hole[2]-cfg.PATCH_SIZE/2, hole[3]+cfg.PATCH_SIZE/2) and j not in xrange(hole[0]-cfg.PATCH_SIZE/2, hole[1]+cfg.PATCH_SIZE/2):
+                indices.append([i,j])
+                patches.append(image[i-cfg.PATCH_SIZE/2:i+cfg.PATCH_SIZE/2, j-cfg.PATCH_SIZE/2:j+cfg.PATCH_SIZE/2])
     end = time()
     print "GetPatches execution time: ", end - start
     return np.array(indices), np.array(patches, dtype='int64').reshape(len(patches), cfg.PATCH_SIZE**2)
@@ -65,10 +67,10 @@ def ReduceDimension(patches):
     print "ReduceDimension execution time: ", end - start
     return reducedPatches
 
-def GetOffsets(patches):
+def GetOffsets(patches, indices):
     start = time()
-    kd = kdtree.KDTree(patches, leafsize=cfg.KDT_LEAF_SIZE, tau=cfg.TAU, deflat_factor=cfg.DEFLAT_FACTOR)
-    dist, offsets = kdtree.get_annf_offsets(patches, kd.tree, cfg.DEFLAT_FACTOR, cfg.TAU)
+    kd = kdtree.KDTree(patches, leafsize=cfg.KDT_LEAF_SIZE, tau=cfg.TAU)
+    dist, offsets = kdtree.get_annf_offsets(patches, indices, kd.tree, cfg.TAU)
     end = time()
     print "GetOffsets execution time: ", end - start
     return offsets
@@ -79,18 +81,18 @@ def GetKDominantOffsets(offsets, K, height, width):
     bins = [[i for i in range(np.min(x),np.max(x))], [i for i in xrange(np.min(y),np.max(y))]]
     hist, xedges, yedges = np.histogram2d(x, y, bins=bins)
     hist = hist.T
-    # plot.PlotHistogram2D(hist, xedges, yedges)
+    plot.PlotHistogram2D(hist, xedges, yedges)
     p, q = np.where(hist == cv2.dilate(hist, np.ones(8))) # Non Maximal Suppression
     nonMaxSuppressedHist = np.zeros(hist.shape)
     nonMaxSuppressedHist[p, q] = hist[p, q]
-    # plot.PlotHistogram2D(nonMaxSuppressedHist, xedges, yedges)
+    plot.PlotHistogram2D(nonMaxSuppressedHist, xedges, yedges)
     p, q = np.where(nonMaxSuppressedHist >= np.partition(nonMaxSuppressedHist.flatten(), -K)[-K])
     peakHist = np.zeros(hist.shape)
     peakHist[p, q] = nonMaxSuppressedHist[p, q]
-    # plot.PlotHistogram2D(peakHist, xedges, yedges)
+    plot.PlotHistogram2D(peakHist, xedges, yedges)
     peakOffsets, freq = np.array([[xedges[j], yedges[i]] for (i, j) in zip(p, q)], dtype="int64"), nonMaxSuppressedHist[p, q].flatten()
     end = time()
-    # plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
+    plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
     print "GetKDominantOffsets execution time: ", end - start
     return peakOffsets 
 
@@ -104,6 +106,7 @@ def main(imageFile, maskFile):
         4. Blending
     """
     image = cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE)
+    imageR = cv2.imread(imageFile)
     mask = cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE)
     bb = GetBoundingBox(mask)
     bbwidth = bb[3] - bb[2]
@@ -113,8 +116,10 @@ def main(imageFile, maskFile):
     sd = GetSearchDomain(image.shape, bb)
     indices, patches = GetPatches(image, sd, bb)
     reducedPatches = ReduceDimension(patches)
-    offsets = GetOffsets(reducedPatches)
+    offsets = GetOffsets(reducedPatches, indices)
     kDominantOffset = GetKDominantOffsets(offsets, 60, image.shape[0], image.shape[1])
+    labels, e = energy.optimize_labels(kDominantOffset, mask, imageR, cfg.TAU)
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
