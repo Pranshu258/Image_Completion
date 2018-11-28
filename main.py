@@ -98,6 +98,7 @@ def GetKDominantOffsets(offsets, K, height, width):
 
 def GetOptimizedLabels(image, mask, labels):
     optimizer = energy.Optimizer(image, mask, labels)
+    optimalLabels = optimizer.OptimizeLabelling()
 
 def main(imageFile, maskFile):
     """
