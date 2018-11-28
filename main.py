@@ -81,21 +81,23 @@ def GetKDominantOffsets(offsets, K, height, width):
     bins = [[i for i in range(np.min(x),np.max(x))], [i for i in xrange(np.min(y),np.max(y))]]
     hist, xedges, yedges = np.histogram2d(x, y, bins=bins)
     hist = hist.T
-    plot.PlotHistogram2D(hist, xedges, yedges)
+    # plot.PlotHistogram2D(hist, xedges, yedges)
     p, q = np.where(hist == cv2.dilate(hist, np.ones(8))) # Non Maximal Suppression
     nonMaxSuppressedHist = np.zeros(hist.shape)
     nonMaxSuppressedHist[p, q] = hist[p, q]
-    plot.PlotHistogram2D(nonMaxSuppressedHist, xedges, yedges)
+    # plot.PlotHistogram2D(nonMaxSuppressedHist, xedges, yedges)
     p, q = np.where(nonMaxSuppressedHist >= np.partition(nonMaxSuppressedHist.flatten(), -K)[-K])
     peakHist = np.zeros(hist.shape)
     peakHist[p, q] = nonMaxSuppressedHist[p, q]
-    plot.PlotHistogram2D(peakHist, xedges, yedges)
+    # plot.PlotHistogram2D(peakHist, xedges, yedges)
     peakOffsets, freq = np.array([[xedges[j], yedges[i]] for (i, j) in zip(p, q)], dtype="int64"), nonMaxSuppressedHist[p, q].flatten()
     end = time()
-    plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
+    # plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
     print "GetKDominantOffsets execution time: ", end - start
     return peakOffsets 
 
+def GetOptimizedLabels(image, mask, labels):
+    optimizer = energy.Optimizer(image, mask, labels)
 
 def main(imageFile, maskFile):
     """
@@ -118,7 +120,7 @@ def main(imageFile, maskFile):
     reducedPatches = ReduceDimension(patches)
     offsets = GetOffsets(reducedPatches, indices)
     kDominantOffset = GetKDominantOffsets(offsets, 60, image.shape[0], image.shape[1])
-    labels, e = energy.optimize_labels(kDominantOffset, mask, imageR, cfg.TAU)
+    optimalLabels = GetOptimizedLabels(imageR, mask, kDominantOffset)
 
 
 if __name__ == "__main__":
