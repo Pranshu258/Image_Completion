@@ -98,7 +98,7 @@ def GetKDominantOffsets(offsets, K, height, width):
 
 def GetOptimizedLabels(image, mask, labels):
     start = time()
-    optimizer = energy.Optimizer(image, mask, labels, cfg.TAU)
+    optimizer = energy.Optimizer(image, mask, labels)
     optimalLabels = optimizer.OptimizeLabelling()
     end = time()
     print "GetOptimizedLabels execution time: ", end - start
@@ -110,10 +110,10 @@ def CompleteImage(image, mask, offsets, optimalLabels):
     sites = [[i, j] for (i, j) in zip(x, y)]
     finalImg = image
     for i in xrange(len(sites)):
-        if optimalLabels[i] != None:
-            j = optimalLabels[i]
+        j = optimalLabels[i]
+        try:
             finalImg[sites[i][0], sites[i][1]] = image[sites[i][0] + offsets[j][0], sites[i][1] + offsets[j][1]]
-        else:
+        except:
             failedPoints[sites[i][0], sites[i][1]] = [255,255,255]
     return finalImg, failedPoints
 
