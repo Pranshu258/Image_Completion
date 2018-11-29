@@ -9,7 +9,7 @@ KDT_LEAF_SIZE = 8
 PCA_COMPONENTS = 24
 
 ## Intermediate Outputs
-PRINT_BB_IMAGE = True
+PRINT_BB_IMAGE = False
 
 ## Pipeline Variables
 IMAGE = ""

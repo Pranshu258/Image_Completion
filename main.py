@@ -97,8 +97,25 @@ def GetKDominantOffsets(offsets, K, height, width):
     return peakOffsets 
 
 def GetOptimizedLabels(image, mask, labels):
-    optimizer = energy.Optimizer(image, mask, labels)
+    start = time()
+    optimizer = energy.Optimizer(image, mask, labels, cfg.TAU)
     optimalLabels = optimizer.OptimizeLabelling()
+    end = time()
+    print "GetOptimizedLabels execution time: ", end - start
+    return optimalLabels 
+
+def CompleteImage(image, mask, offsets, optimalLabels):
+    failedPoints = np.zeros(image.shape)
+    x, y = np.where(mask != 0)
+    sites = [[i, j] for (i, j) in zip(x, y)]
+    finalImg = image
+    for i in xrange(len(sites)):
+        if optimalLabels[i] != None:
+            j = optimalLabels[i]
+            finalImg[sites[i][0], sites[i][1]] = image[sites[i][0] + offsets[j][0], sites[i][1] + offsets[j][1]]
+        else:
+            failedPoints[sites[i][0], sites[i][1]] = [255,255,255]
+    return finalImg, failedPoints
 
 def main(imageFile, maskFile):
     """
@@ -122,7 +139,8 @@ def main(imageFile, maskFile):
     offsets = GetOffsets(reducedPatches, indices)
     kDominantOffset = GetKDominantOffsets(offsets, 60, image.shape[0], image.shape[1])
     optimalLabels = GetOptimizedLabels(imageR, mask, kDominantOffset)
-
+    completedImage, failedPoints = CompleteImage(imageR, mask, kDominantOffset, optimalLabels)
+    cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Complete.png", completedImage)
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
