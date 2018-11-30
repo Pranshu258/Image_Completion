@@ -125,10 +125,14 @@ def main(imageFile, maskFile):
         3. Image Stacking
         4. Blending
     """
-    image = cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE)
-    imageR = cv2.imread(imageFile)
-    mask = cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE)
+    image = cv2.resize(cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE), (0,0), fx=0.5, fy=0.5)
+    imageR = cv2.resize(cv2.imread(imageFile), (0,0), fx=0.5, fy=0.5)
+    mask = cv2.resize(cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE), (0,0), fx=0.5, fy=0.5)
     bb = GetBoundingBox(mask)
+    # image = cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE)
+    # imageR = cv2.imread(imageFile)
+    # mask = cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE)
+    # bb = GetBoundingBox(mask)
     bbwidth = bb[3] - bb[2]
     bbheight = bb[1] - bb[0]
     cfg.TAU = max(bbwidth, bbheight)/15
