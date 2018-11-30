@@ -22,13 +22,6 @@ class Optimizer(object):
         # self.InitializeV()
         self.InitializeNeighbors()
 
-    # def InitializeV():
-    #     for i in xrange(len(self.sites)):
-    #         for j in range(i,len(self.sites)):
-    #             for l in xrange(len(self.labels)):
-    #                 for m in range(l,len(self.labels)):
-    #                     self.vmem[i,j,l,m] = self.V(self.sites[i], self.sites[j], self.labels[l], self.labels[m])
-    
     def InitializeD(self):
         for i in xrange(len(self.sites)):
             for j in xrange(len(self.labels)):
@@ -75,13 +68,14 @@ class Optimizer(object):
         
         # Sum of the unary terms.
         unary = np.sum([self.dmem[labelling==i,i].sum() for i in range(num_labelling)])
-
+        
         # Binary terms.
         binary = 0
-        for i in xrange(len(self.sites)):
-            for j in self.neighbors[i]:
-                binary += self.V(self.sites[i], self.sites[j], self.labels[labelling[i]], self.labels[labelling[j]])
-        
+        if unary < float('inf'):
+            for i in xrange(len(self.sites)):
+                for j in self.neighbors[i]:
+                    binary += self.V(self.sites[i], self.sites[j], self.labels[labelling[i]], self.labels[labelling[j]])
+            
         end = time()
         #print "EnergyCalculator execution time: ", end - start
         return unary + binary
@@ -141,30 +135,32 @@ class Optimizer(object):
     def OptimizeLabelling(self):
         x, y = np.where(self.mask != 0)
         sites = [[i, j] for (i, j) in zip(x, y)]
-        labelling = self.InitializeLabelling(sites)
-        E1 = self.EnergyCalculator(labelling)
+        labellings = np.zeros((2, len(sites)), dtype=int)
+        labellings[0] = labellings[1] = self.InitializeLabelling(sites)
+        E1 = self.EnergyCalculator(labellings[0])
         iter_count = 0
         while(True):
+            start = time()
             success = 0
             for alpha, beta in combinations(range(len(self.labels)), 2):
-                ps = [i for i in range(len(sites)) if (labelling[i] == alpha or labelling[i] == beta)]
+                ps = [i for i in range(len(sites)) if (labellings[0][i] == alpha or labellings[0][i] == beta)]
                 if len(ps) > 0:
-                    g, nodes = self.CreateGraph(alpha, beta, sites, labelling)
+                    g, nodes = self.CreateGraph(alpha, beta, sites, labellings[0])
                     flow = g.maxflow()
-                    currentAB = [labelling[ps[i]] for i in range(len(ps))]
                     for i in range(len(ps)):
                         gamma = g.get_segment(nodes[i])
-                        labelling[ps[i]] = alpha*(1-gamma) + beta*gamma
-                    E2 = self.EnergyCalculator(labelling)
+                        labellings[1, ps[i]] = alpha*(1-gamma) + beta*gamma
+                    E2 = self.EnergyCalculator(labellings[1])
                     if  E2 < E1:
+                        labellings[0, ps] = labellings[1, ps] 
                         E1 = E2
                         success = 1
                     else:
-                        for i in range(len(ps)):
-                            labelling[ps[i]] = currentAB[i]                       
+                        labellings[1, ps] = labellings[0, ps]                      
             if success != 1 or iter_count >= cfg.MAX_ITER:
-                return labelling
+                return labellings[0]
             iter_count += 1
-            print("Iterations: ", iter_count)
+            end = time()
+            print "Iteration " + str(iter_count) + " execution time: ", str(end - start) 
         
         
