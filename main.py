@@ -107,6 +107,7 @@ def GetOptimizedLabels(image, mask, labels):
 
 def CompleteImage(image, mask, offsets, optimalLabels):
     failedPoints = np.zeros(image.shape)
+    completedPoints = np.zeros(image.shape)
     x, y = np.where(mask != 0)
     sites = [[i, j] for (i, j) in zip(x, y)]
     finalImg = image
@@ -114,9 +115,17 @@ def CompleteImage(image, mask, offsets, optimalLabels):
         j = optimalLabels[i]
         try:
             finalImg[sites[i][0], sites[i][1]] = image[sites[i][0] + offsets[j][0], sites[i][1] + offsets[j][1]]
+            completedPoints[sites[i][0], sites[i][1]] = finalImg[sites[i][0], sites[i][1]]
         except:
             failedPoints[sites[i][0], sites[i][1]] = [255,255,255]
-    return finalImg, failedPoints
+    return finalImg, failedPoints, completedPoints
+
+def PoissonBlending(image, mask, center):
+    src = cv2.imread(cfg.OUT_FOLDER + cfg.IMAGE + "_CompletedPoints.png")
+    dst = cv2.imread(cfg.OUT_FOLDER + cfg.IMAGE + "_Complete.png")
+    blendedImage = cv2.seamlessClone(src, image, mask, center, cv2.MIXED_CLONE)
+    return blendedImage
+
 
 def main(imageFile, maskFile):
     """
@@ -144,9 +153,13 @@ def main(imageFile, maskFile):
     offsets = GetOffsets(reducedPatches, indices)
     kDominantOffset = GetKDominantOffsets(offsets, 60, image.shape[0], image.shape[1])
     optimalLabels = GetOptimizedLabels(imageR, mask, kDominantOffset)
-    completedImage, failedPoints = CompleteImage(imageR, mask, kDominantOffset, optimalLabels)
+    completedImage, failedPoints, completedPoints = CompleteImage(imageR, mask, kDominantOffset, optimalLabels)
     cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Complete.png", completedImage)
     # cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Failed.png", failedPoints)
+    cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_CompletedPoints.png", completedPoints)
+    center = (bb[2]+bbwidth/2, bb[0]+bbheight/2)
+    blendedImage = PoissonBlending(imageR, mask,center)
+    cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_blendedImage.png", blendedImage)
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
