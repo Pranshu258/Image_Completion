@@ -118,10 +118,9 @@ class Optimizer(object):
             # add the data terms here
             ta, tb = self.D(pixel_pos, self.labels[alpha]), self.D(pixel_pos, self.labels[beta])
             # add the smoothing terms here
-            neighbor_list = self.GetNeighbors(pixel_pos)
-            for neighbor in neighbor_list:
+            neighbor_list = self.neighbors[ps[i]]
+            for ind in neighbor_list:
                 try:
-                    ind = sites.index(neighbor)
                     gamma, j = labelling[ind], ps.index(ind)
                     if gamma == beta and j > i:
                         epq = self.V(pixel_pos, neighbor, self.labels[alpha], self.labels[gamma])
@@ -140,6 +139,7 @@ class Optimizer(object):
         return g, nodes
 
     def OptimizeLabelling(self):
+        labellings = []
         x, y = np.where(self.mask != 0)
         sites = [[i, j] for (i, j) in zip(x, y)]
         labelling = self.InitializeLabelling(sites)
@@ -163,15 +163,16 @@ class Optimizer(object):
                             temp_labelling[ps[i]] = beta
                     E2 = self.EnergyCalculator(temp_labelling)
                     if  E2 < E1:
-                        print(E1, E2)
+                        print(alpha, beta, E1, E2)
+                        print(np.sum([self.dmem[labelling==i,i].sum() for i in range(self.dmem.shape[-1])]))
                         E1 = E2
                         # Set the new labelling
                         labelling = temp_labelling
+                        labellings.append(labelling)
                         #print(labelling)
                         success = 1
-            print labelling
             if success != 1 or iter_count >= cfg.MAX_ITER:
-                return labelling
+                return labellings
             iter_count += 1
             print("Iterations: ", iter_count)
         
