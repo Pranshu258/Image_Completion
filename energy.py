@@ -143,6 +143,7 @@ class Optimizer(object):
         x, y = np.where(self.mask != 0)
         sites = [[i, j] for (i, j) in zip(x, y)]
         labelling = self.InitializeLabelling(sites)
+        labellings.append(labelling)
         E1 = self.EnergyCalculator(labelling)
         iter_count = 0
         while(True):
