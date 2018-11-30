@@ -90,7 +90,8 @@ def GetKDominantOffsets(offsets, K, height, width):
     peakHist = np.zeros(hist.shape)
     peakHist[p, q] = nonMaxSuppressedHist[p, q]
     # plot.PlotHistogram2D(peakHist, xedges, yedges)
-    peakOffsets, freq = np.array([[xedges[j], yedges[i]] for (i, j) in zip(p, q)], dtype="int64"), nonMaxSuppressedHist[p, q].flatten()
+    peakOffsets, freq = [[xedges[j], yedges[i]] for (i, j) in zip(p, q)], nonMaxSuppressedHist[p, q].flatten()
+    peakOffsets = np.array([x for _, x in sorted(zip(freq, peakOffsets), reverse=True)], dtype="int64")[:K]
     end = time()
     # plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
     print "GetKDominantOffsets execution time: ", end - start
@@ -125,14 +126,14 @@ def main(imageFile, maskFile):
         3. Image Stacking
         4. Blending
     """
-    image = cv2.resize(cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE), (0,0), fx=0.5, fy=0.5)
-    imageR = cv2.resize(cv2.imread(imageFile), (0,0), fx=0.5, fy=0.5)
-    mask = cv2.resize(cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE), (0,0), fx=0.5, fy=0.5)
-    bb = GetBoundingBox(mask)
-    # image = cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE)
-    # imageR = cv2.imread(imageFile)
-    # mask = cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE)
+    # image = cv2.resize(cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE), (0,0), fx=0.5, fy=0.5)
+    # imageR = cv2.resize(cv2.imread(imageFile), (0,0), fx=0.5, fy=0.5)
+    # mask = cv2.resize(cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE), (0,0), fx=0.5, fy=0.5)
     # bb = GetBoundingBox(mask)
+    image = cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE)
+    imageR = cv2.imread(imageFile)
+    mask = cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE)
+    bb = GetBoundingBox(mask)
     bbwidth = bb[3] - bb[2]
     bbheight = bb[1] - bb[0]
     cfg.TAU = max(bbwidth, bbheight)/15
@@ -145,7 +146,7 @@ def main(imageFile, maskFile):
     optimalLabels = GetOptimizedLabels(imageR, mask, kDominantOffset)
     completedImage, failedPoints = CompleteImage(imageR, mask, kDominantOffset, optimalLabels)
     cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Complete.png", completedImage)
-    cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Failed.png", failedPoints)
+    # cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Failed.png", failedPoints)
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
