@@ -105,7 +105,7 @@ class Optimizer(object):
                     break
         end = time()
         print "InitializeLabelling execution time: ", end - start
-        return labelling
+        return np.array(labelling)
 
     def CreateGraph(self, alpha, beta, sites, labelling):
         start = time()
@@ -156,7 +156,7 @@ class Optimizer(object):
                     flow = g.maxflow()
                     # end = time()
                     # print "MaxFlow execution time: ", end - start
-                    temp_labelling = labelling
+                    temp_labelling = labelling.copy()
                     for i in range(len(ps)):
                         if g.get_segment(nodes[i]) == 0:
                             temp_labelling[ps[i]] = alpha
@@ -164,11 +164,11 @@ class Optimizer(object):
                             temp_labelling[ps[i]] = beta
                     E2 = self.EnergyCalculator(temp_labelling)
                     if  E2 < E1:
-                        print(alpha, beta, E1, E2)
-                        print(np.sum([self.dmem[labelling==i,i].sum() for i in range(self.dmem.shape[-1])]))
+                        # print(alpha, beta, E1, E2)
+                        # print(np.sum([self.dmem[labelling==i,i].sum() for i in range(self.dmem.shape[-1])]))
                         E1 = E2
                         # Set the new labelling
-                        labelling = temp_labelling
+                        labelling = temp_labelling.copy()
                         labellings.append(labelling)
                         #print(labelling)
                         success = 1
