@@ -143,10 +143,9 @@ def main(imageFile, maskFile):
     offsets = GetOffsets(reducedPatches, indices)
     kDominantOffset = GetKDominantOffsets(offsets, 60, image.shape[0], image.shape[1])
     optimalLabels = GetOptimizedLabels(imageR, mask, kDominantOffset)
-    for i in xrange(len(optimalLabels)):
-        completedImage, failedPoints = CompleteImage(imageR, mask, kDominantOffset, optimalLabels[i])
-        cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + str(i) + "_Complete.png", completedImage)
-        cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + str(i) + "_Failed.png", failedPoints)
+    completedImage, failedPoints = CompleteImage(imageR, mask, kDominantOffset, optimalLabels)
+    cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Complete.png", completedImage)
+    cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Failed.png", failedPoints)
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

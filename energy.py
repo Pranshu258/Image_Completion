@@ -139,11 +139,9 @@ class Optimizer(object):
         return g, nodes
 
     def OptimizeLabelling(self):
-        labellings = []
         x, y = np.where(self.mask != 0)
         sites = [[i, j] for (i, j) in zip(x, y)]
         labelling = self.InitializeLabelling(sites)
-        labellings.append(labelling)
         E1 = self.EnergyCalculator(labelling)
         iter_count = 0
         while(True):
@@ -152,28 +150,20 @@ class Optimizer(object):
                 ps = [i for i in range(len(sites)) if (labelling[i] == alpha or labelling[i] == beta)]
                 if len(ps) > 0:
                     g, nodes = self.CreateGraph(alpha, beta, sites, labelling)
-                    # start = time()
                     flow = g.maxflow()
-                    # end = time()
-                    # print "MaxFlow execution time: ", end - start
-                    temp_labelling = labelling.copy()
+                    currentAB = [labelling[ps[i]] for i in range(len(ps))]
                     for i in range(len(ps)):
-                        if g.get_segment(nodes[i]) == 0:
-                            temp_labelling[ps[i]] = alpha
-                        elif g.get_segment(nodes[i]) == 1:
-                            temp_labelling[ps[i]] = beta
-                    E2 = self.EnergyCalculator(temp_labelling)
+                        gamma = g.get_segment(nodes[i])
+                        labelling[ps[i]] = alpha*(1-gamma) + beta*gamma
+                    E2 = self.EnergyCalculator(labelling)
                     if  E2 < E1:
-                        # print(alpha, beta, E1, E2)
-                        # print(np.sum([self.dmem[labelling==i,i].sum() for i in range(self.dmem.shape[-1])]))
                         E1 = E2
-                        # Set the new labelling
-                        labelling = temp_labelling.copy()
-                        labellings.append(labelling)
-                        #print(labelling)
                         success = 1
+                    else:
+                        for i in range(len(ps)):
+                            labelling[ps[i]] = currentAB[i]                       
             if success != 1 or iter_count >= cfg.MAX_ITER:
-                return labellings
+                return labelling
             iter_count += 1
             print("Iterations: ", iter_count)
         
