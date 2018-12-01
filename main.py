@@ -123,7 +123,7 @@ def CompleteImage(image, mask, offsets, optimalLabels):
 def PoissonBlending(image, mask, center):
     src = cv2.imread(cfg.OUT_FOLDER + cfg.IMAGE + "_CompletedPoints.png")
     dst = cv2.imread(cfg.OUT_FOLDER + cfg.IMAGE + "_Complete.png")
-    blendedImage = cv2.seamlessClone(src, image, mask, center, cv2.MIXED_CLONE)
+    blendedImage = cv2.seamlessClone(src, dst, mask, center, cv2.MIXED_CLONE)
     return blendedImage
 
 
@@ -158,7 +158,7 @@ def main(imageFile, maskFile):
     # cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Failed.png", failedPoints)
     cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_CompletedPoints.png", completedPoints)
     center = (bb[2]+bbwidth/2, bb[0]+bbheight/2)
-    blendedImage = PoissonBlending(imageR, mask,center)
+    blendedImage = PoissonBlending(imageR, mask, center)
     cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_blendedImage.png", blendedImage)
 
 if __name__ == "__main__":
