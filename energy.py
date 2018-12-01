@@ -58,26 +58,6 @@ class Optimizer(object):
         except:
             return 1000000.0
         
-
-    def EnergyCalculator(self, labelling):
-        start = time()
-        num_labelling = self.dmem.shape[-1]
-        
-        # Sum of the unary terms.
-        unary = np.sum([self.dmem[labelling==i,i].sum() for i in range(num_labelling)])
-        
-        # Binary terms.
-        binary = 0
-        if unary < float('inf'):
-            for i in xrange(len(self.sites)):
-                for j in self.neighbors[i]:
-                    if j > i:
-                        binary += self.V(self.sites[i], self.sites[j], self.labels[labelling[i]], self.labels[labelling[j]])
-            
-        end = time()
-        #print "EnergyCalculator execution time: ", end - start
-        return unary + binary
-
     def IsLowerEnergy(self, nodes, labelling1, labelling2):
         updatedNodes = np.where(labelling1 != labelling2)[0]
         diff = 0.0
@@ -152,7 +132,6 @@ class Optimizer(object):
         sites = [[i, j] for (i, j) in zip(x, y)]
         labellings = np.zeros((2, len(sites)), dtype=int)
         labellings[0] = labellings[1] = self.InitializeLabelling(sites)
-        # E1 = self.EnergyCalculator(labellings[0])
         iter_count = 0
         while(True):
             start = time()
@@ -165,12 +144,8 @@ class Optimizer(object):
                     for i in range(len(ps)):
                         gamma = g.get_segment(nodes[i])
                         labellings[1, ps[i]] = alpha*(1-gamma) + beta*gamma
-                    # E2 = self.EnergyCalculator(labellings[1])
-                    # if ((E2 < E1) != self.IsLowerEnergy(ps, labellings[0], labellings[1])):
-                    #     print("IsLower is Wrong :'(")
                     if self.IsLowerEnergy(ps, labellings[0], labellings[1]):
                         labellings[0, ps] = labellings[1, ps] 
-                        # E1 = E2
                         success = 1
                     else:
                         labellings[1, ps] = labellings[0, ps]                      
