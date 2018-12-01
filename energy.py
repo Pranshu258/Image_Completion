@@ -83,42 +83,40 @@ class Optimizer(object):
             return True
         return False 
 
-    def InitializeLabelling(self, sites):
+    def InitializeLabelling(self):
         start = time()
-        labelling = [None]*len(sites)
-        for i in xrange(len(sites)):
+        labelling = [None]*len(self.sites)
+        for i in xrange(len(self.sites)):
             perm = np.random.permutation(len(self.labels))
             for j in perm:
-                if self.D(sites[i], self.labels[j]) < 1000000.0:
+                if self.D(self.sites[i], self.labels[j]) < 1000000.0:
                     labelling[i] = j
                     break
         end = time()
         print "InitializeLabelling execution time: ", end - start
         return np.array(labelling)
 
-    def CreateGraph(self, alpha, beta, sites, labelling):
+    def CreateGraph(self, alpha, beta, ps, labelling):
         start = time()
-        ps = [i for i in range(len(sites)) if (labelling[i] == alpha or labelling[i] == beta)]
         v = len(ps)
         g = maxflow.Graph[float](v, 3*v)
         nodes = g.add_nodes(v)
         for i in range(v):
-            pixel_pos = sites[ps[i]]
             # add the data terms here
-            ta, tb = self.D(pixel_pos, self.labels[alpha]), self.D(pixel_pos, self.labels[beta])
+            ta, tb = self.D(self.sites[ps[i]], self.labels[alpha]), self.D(self.sites[ps[i]], self.labels[beta])
             # add the smoothing terms here
             neighbor_list = self.neighbors[ps[i]]
             for ind in neighbor_list:
                 try:
                     gamma, j = labelling[ind], ps.index(ind)
                     if gamma == beta and j > i:
-                        epq = self.V(pixel_pos, neighbor, self.labels[alpha], self.labels[gamma])
+                        epq = self.V(self.sites[ps[i]], self.sites[ind], self.labels[alpha], self.labels[gamma])
                         g.add_edge(nodes[i], nodes[j], epq, epq)
                     elif gamma == alpha and j > i:
                         g.add_edge(nodes[i], nodes[j], 0, 0)
                     else:
-                        ea = self.V(pixel_pos, neighbor, self.labels[alpha], self.labels[gamma])
-                        eb = self.V(pixel_pos, neighbor, self.labels[beta], self.labels[gamma])
+                        ea = self.V(self.sites[ps[i]], self.sites[ind], self.labels[alpha], self.labels[gamma])
+                        eb = self.V(self.sites[ps[i]], self.sites[ind], self.labels[beta], self.labels[gamma])
                         ta, tb = ta + ea, tb + eb
                 except:
                     pass                                    
@@ -128,18 +126,16 @@ class Optimizer(object):
         return g, nodes
 
     def OptimizeLabelling(self):
-        x, y = np.where(self.mask != 0)
-        sites = [[i, j] for (i, j) in zip(x, y)]
-        labellings = np.zeros((2, len(sites)), dtype=int)
-        labellings[0] = labellings[1] = self.InitializeLabelling(sites)
+        labellings = np.zeros((2, len(self.sites)), dtype=int)
+        labellings[0] = labellings[1] = self.InitializeLabelling()
         iter_count = 0
         while(True):
             start = time()
             success = 0
             for alpha, beta in combinations(range(len(self.labels)), 2):
-                ps = [i for i in range(len(sites)) if (labellings[0][i] == alpha or labellings[0][i] == beta)]
+                ps = [i for i in range(len(self.sites)) if (labellings[0][i] == alpha or labellings[0][i] == beta)]
                 if len(ps) > 0:
-                    g, nodes = self.CreateGraph(alpha, beta, sites, labellings[0])
+                    g, nodes = self.CreateGraph(alpha, beta, ps, labellings[0])
                     flow = g.maxflow()
                     for i in range(len(ps)):
                         gamma = g.get_segment(nodes[i])
