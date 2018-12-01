@@ -91,7 +91,7 @@ def GetKDominantOffsets(offsets, K, height, width):
     peakHist[p, q] = nonMaxSuppressedHist[p, q]
     # plot.PlotHistogram2D(peakHist, xedges, yedges)
     peakOffsets, freq = [[xedges[j], yedges[i]] for (i, j) in zip(p, q)], nonMaxSuppressedHist[p, q].flatten()
-    peakOffsets = np.array([x for _, x in sorted(zip(freq, peakOffsets), reverse=True)], dtype="int64")[:K]
+    peakOffsets = np.array([x for _, x in sorted(zip(freq, peakOffsets), reverse=True)], dtype="int64")[:2*K]
     end = time()
     # plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
     print "GetKDominantOffsets execution time: ", end - start
@@ -100,7 +100,9 @@ def GetKDominantOffsets(offsets, K, height, width):
 def GetOptimizedLabels(image, mask, labels):
     start = time()
     optimizer = energy.Optimizer(image, mask, labels)
-    optimalLabels = optimizer.OptimizeLabelling()
+    optimalLabels = optimizer.InitializeLabelling()
+    #optimalLabels = optimizer.OptimizeLabellingAE(optimalLabels)
+    optimalLabels = optimizer.OptimizeLabellingABS(optimalLabels)
     end = time()
     print "GetOptimizedLabels execution time: ", end - start
     return optimalLabels 

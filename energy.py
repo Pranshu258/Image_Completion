@@ -96,7 +96,7 @@ class Optimizer(object):
         print "InitializeLabelling execution time: ", end - start
         return np.array(labelling)
 
-    def CreateGraph(self, alpha, beta, ps, labelling):
+    def CreateGraphABS(self, alpha, beta, ps, labelling):
         start = time()
         v = len(ps)
         g = maxflow.Graph[float](v, 3*v)
@@ -108,26 +108,54 @@ class Optimizer(object):
             neighbor_list = self.neighbors[ps[i]]
             for ind in neighbor_list:
                 try:
-                    gamma, j = labelling[ind], ps.index(ind)
-                    if gamma == beta and j > i:
-                        epq = self.V(self.sites[ps[i]], self.sites[ind], self.labels[alpha], self.labels[gamma])
+                    a, b, j = labelling[ps[i]], labelling[ind], ps.index(ind)
+                    if j > i and (b == alpha or b == beta):
+                        epq = self.V(self.sites[ps[i]], self.sites[ps[j]], self.labels[alpha], self.labels[beta])
                         g.add_edge(nodes[i], nodes[j], epq, epq)
-                    elif gamma == alpha and j > i:
-                        g.add_edge(nodes[i], nodes[j], 0, 0)
                     else:
-                        ea = self.V(self.sites[ps[i]], self.sites[ind], self.labels[alpha], self.labels[gamma])
-                        eb = self.V(self.sites[ps[i]], self.sites[ind], self.labels[beta], self.labels[gamma])
+                        ea = self.V(self.sites[ps[i]], self.sites[ps[j]], self.labels[alpha], self.labels[b])
+                        eb = self.V(self.sites[ps[i]], self.sites[ps[j]], self.labels[beta], self.labels[b])
                         ta, tb = ta + ea, tb + eb
-                except:
-                    pass                                    
+                except Exception as e:
+                    pass                                  
             g.add_tedge(nodes[i], ta, tb)
         end = time()
         #print "CreateGraph execution time: ", end - start
         return g, nodes
 
-    def OptimizeLabelling(self):
+    def CreateGraphAE(self, alpha, labelling):
+        start = time()
+        v = len(self.sites)
+        g = maxflow.Graph[float](2*v, 4*v)
+        nodes = g.add_nodes(v)
+        for i in range(v):
+            ta, tb = self.D(self.sites[i], self.labels[alpha]), float('inf')
+            if labelling[i] != alpha:
+                tb = self.D(self.sites[i], self.labels[labelling[i]])
+            g.add_tedge(nodes[i], ta, tb)
+            neighbor_list = self.neighbors[i]
+            for j in neighbor_list:
+                try:
+                    if labelling[i] == labelling[j] and j > i:
+                        epq = self.V(self.sites[i], self.sites[j], self.labels[labelling[i]], self.labels[alpha])
+                        g.add_edge(nodes[i], nodes[j], epq, epq)
+                    elif j > i:
+                        aux_nodes = g.add_nodes(1)
+                        epa = self.V(self.sites[i], self.sites[j], self.labels[labelling[i]], self.labels[alpha])
+                        eaq = self.V(self.sites[i], self.sites[j], self.labels[labelling[j]], self.labels[alpha])
+                        epq = self.V(self.sites[i], self.sites[j], self.labels[labelling[i]], self.labels[labelling[j]])
+                        g.add_edge(nodes[i], aux_nodes[0], epa, epa)
+                        g.add_edge(nodes[j], aux_nodes[0], eaq, eaq)
+                        g.add_tedge(aux_nodes[0], float('inf'), epq)
+                except Exception as e:
+                    print(e)
+        end = time()
+        #print "CreateGraph execution time: ", end - start
+        return g, nodes            
+
+    def OptimizeLabellingABS(self, labelling):
         labellings = np.zeros((2, len(self.sites)), dtype=int)
-        labellings[0] = labellings[1] = self.InitializeLabelling()
+        labellings[0] = labellings[1] = np.copy(labelling)
         iter_count = 0
         while(True):
             start = time()
@@ -135,7 +163,7 @@ class Optimizer(object):
             for alpha, beta in combinations(range(len(self.labels)), 2):
                 ps = [i for i in range(len(self.sites)) if (labellings[0][i] == alpha or labellings[0][i] == beta)]
                 if len(ps) > 0:
-                    g, nodes = self.CreateGraph(alpha, beta, ps, labellings[0])
+                    g, nodes = self.CreateGraphABS(alpha, beta, ps, labellings[0])
                     flow = g.maxflow()
                     for i in range(len(ps)):
                         gamma = g.get_segment(nodes[i])
@@ -145,10 +173,36 @@ class Optimizer(object):
                         success = 1
                     else:
                         labellings[1, ps] = labellings[0, ps]                      
-            if success != 1 or iter_count >= cfg.MAX_ITER:
-                return labellings[0]
             iter_count += 1
             end = time()
-            print "Iteration " + str(iter_count) + " execution time: ", str(end - start) 
+            print "ABS Iteration " + str(iter_count) + " execution time: ", str(end - start) 
+            if success != 1 or iter_count >= cfg.MAX_ITER:
+                break
+        return labellings[0]
+
+    def OptimizeLabellingAE(self, labelling):
+        labellings = np.zeros((2, len(self.sites)), dtype=int)
+        labellings[0] = labellings[1] = np.copy(labelling)
+        iter_count = 0
+        while(True):
+            start = time()
+            success = 0
+            for alpha in xrange(len(self.labels)):
+                g, nodes = self.CreateGraphAE(alpha, labellings[0])
+                flow = g.maxflow()
+                for i in range(len(self.sites)):
+                    gamma = g.get_segment(nodes[i])
+                    labellings[1, i] = alpha*(1-gamma) + labellings[1, i]*gamma
+                if self.IsLowerEnergy(range(len(self.sites)), labellings[0], labellings[1]):
+                    labellings[0] = labellings[1] 
+                    success = 1
+                else:
+                    labellings[1] = labellings[0]     
+            iter_count += 1
+            end = time()
+            print "AE Iteration " + str(iter_count) + " execution time: ", str(end - start) 
+            if success != 1 or iter_count >= cfg.MAX_ITER:
+                break
+        return labellings[0]
         
         
