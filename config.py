@@ -7,7 +7,7 @@ BB_IMAGE_SUFFIX = "_BB.png"
 PATCH_SIZE = 8
 KDT_LEAF_SIZE = 8
 PCA_COMPONENTS = 24
-MAX_ITER = 10
+MAX_ITER = 20
 
 ## Intermediate Outputs
 PRINT_BB_IMAGE = False
