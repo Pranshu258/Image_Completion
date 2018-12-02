@@ -93,33 +93,29 @@ def GetKDominantOffsets(offsets, K, height, width):
     peakOffsets, freq = [[xedges[j], yedges[i]] for (i, j) in zip(p, q)], nonMaxSuppressedHist[p, q].flatten()
     peakOffsets = np.array([x for _, x in sorted(zip(freq, peakOffsets), reverse=True)], dtype="int64")[:2*K]
     end = time()
-    # plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
+    plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
     print "GetKDominantOffsets execution time: ", end - start
     return peakOffsets 
 
 def GetOptimizedLabels(image, mask, labels):
     start = time()
     optimizer = energy.Optimizer(image, mask, labels)
-    optimalLabels = optimizer.InitializeLabelling()
+    sites, optimalLabels = optimizer.InitializeLabelling()
     #optimalLabels = optimizer.OptimizeLabellingAE(optimalLabels)
     optimalLabels = optimizer.OptimizeLabellingABS(optimalLabels)
     end = time()
     print "GetOptimizedLabels execution time: ", end - start
-    return optimalLabels 
+    return sites, optimalLabels 
 
-def CompleteImage(image, mask, offsets, optimalLabels):
-    failedPoints = np.zeros(image.shape)
+def CompleteImage(image, sites, mask, offsets, optimalLabels):
+    failedPoints = mask
     completedPoints = np.zeros(image.shape)
-    x, y = np.where(mask != 0)
-    sites = [[i, j] for (i, j) in zip(x, y)]
     finalImg = image
     for i in xrange(len(sites)):
         j = optimalLabels[i]
-        try:
-            finalImg[sites[i][0], sites[i][1]] = image[sites[i][0] + offsets[j][0], sites[i][1] + offsets[j][1]]
-            completedPoints[sites[i][0], sites[i][1]] = finalImg[sites[i][0], sites[i][1]]
-        except:
-            failedPoints[sites[i][0], sites[i][1]] = [255,255,255]
+        finalImg[sites[i][0], sites[i][1]] = image[sites[i][0] + offsets[j][0], sites[i][1] + offsets[j][1]]
+        completedPoints[sites[i][0], sites[i][1]] = finalImg[sites[i][0], sites[i][1]]
+        failedPoints[sites[i][0], sites[i][1]] = 0
     return finalImg, failedPoints, completedPoints
 
 def PoissonBlending(image, mask, center):
@@ -137,10 +133,6 @@ def main(imageFile, maskFile):
         3. Image Stacking
         4. Blending
     """
-    # image = cv2.resize(cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE), (0,0), fx=0.5, fy=0.5)
-    # imageR = cv2.resize(cv2.imread(imageFile), (0,0), fx=0.5, fy=0.5)
-    # mask = cv2.resize(cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE), (0,0), fx=0.5, fy=0.5)
-    # bb = GetBoundingBox(mask)
     image = cv2.imread(imageFile, cv2.IMREAD_GRAYSCALE)
     imageR = cv2.imread(imageFile)
     mask = cv2.imread(maskFile, cv2.IMREAD_GRAYSCALE)
@@ -154,14 +146,13 @@ def main(imageFile, maskFile):
     reducedPatches = ReduceDimension(patches)
     offsets = GetOffsets(reducedPatches, indices)
     kDominantOffset = GetKDominantOffsets(offsets, 60, image.shape[0], image.shape[1])
-    optimalLabels = GetOptimizedLabels(imageR, mask, kDominantOffset)
-    completedImage, failedPoints, completedPoints = CompleteImage(imageR, mask, kDominantOffset, optimalLabels)
+    sites, optimalLabels = GetOptimizedLabels(imageR, mask, kDominantOffset)
+    completedImage, failedPoints, completedPoints = CompleteImage(imageR, sites, mask, kDominantOffset, optimalLabels)
     cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Complete.png", completedImage)
-    # cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Failed.png", failedPoints)
-    cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_CompletedPoints.png", completedPoints)
-    center = (bb[2]+bbwidth/2, bb[0]+bbheight/2)
-    blendedImage = PoissonBlending(imageR, mask, center)
-    cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_blendedImage.png", blendedImage)
+    #cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_CompletedPoints.png", completedPoints)
+    if (np.sum(failedPoints)):
+        cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Failed.png", failedPoints)
+        main(cfg.OUT_FOLDER + cfg.IMAGE + "_Complete.png", cfg.OUT_FOLDER + cfg.IMAGE + "_Failed.png")
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:

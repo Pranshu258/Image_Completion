@@ -91,10 +91,12 @@ class Optimizer(object):
             for j in perm:
                 if self.D(self.sites[i], self.labels[j]) < 1000000.0:
                     labelling[i] = j
-                    break
+                    break     
+        self.sites = [self.sites[i] for i in range(len(self.sites)) if labelling[i] != None]
+        labelling = [label for label in labelling if label != None]         
         end = time()
         print "InitializeLabelling execution time: ", end - start
-        return np.array(labelling)
+        return self.sites, np.array(labelling)
 
     def CreateGraphABS(self, alpha, beta, ps, labelling):
         start = time()
