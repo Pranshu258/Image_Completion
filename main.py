@@ -49,15 +49,15 @@ def GetPatches(image, bbox, hole):
     """
     start = time()
     indices, patches = [], []
-    rows, cols = image.shape
+    rows, cols, _ = image.shape
     for i in xrange(bbox[2]+cfg.PATCH_SIZE/2, bbox[3]-cfg.PATCH_SIZE/2):
         for j in xrange(bbox[0]+cfg.PATCH_SIZE/2, bbox[1]-cfg.PATCH_SIZE/2):
             if i not in xrange(hole[2]-cfg.PATCH_SIZE/2, hole[3]+cfg.PATCH_SIZE/2) and j not in xrange(hole[0]-cfg.PATCH_SIZE/2, hole[1]+cfg.PATCH_SIZE/2):
                 indices.append([i,j])
-                patches.append(image[i-cfg.PATCH_SIZE/2:i+cfg.PATCH_SIZE/2, j-cfg.PATCH_SIZE/2:j+cfg.PATCH_SIZE/2])
+                patches.append(image[i-cfg.PATCH_SIZE/2:i+cfg.PATCH_SIZE/2, j-cfg.PATCH_SIZE/2:j+cfg.PATCH_SIZE/2].flatten())
     end = time()
     print "GetPatches execution time: ", end - start
-    return np.array(indices), np.array(patches, dtype='int64').reshape(len(patches), cfg.PATCH_SIZE**2)
+    return np.array(indices), np.array(patches, dtype='int64')
 
 def ReduceDimension(patches):
     start = time()
@@ -93,7 +93,7 @@ def GetKDominantOffsets(offsets, K, height, width):
     peakOffsets, freq = [[xedges[j], yedges[i]] for (i, j) in zip(p, q)], nonMaxSuppressedHist[p, q].flatten()
     peakOffsets = np.array([x for _, x in sorted(zip(freq, peakOffsets), reverse=True)], dtype="int64")[:2*K]
     end = time()
-    plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
+    # plot.ScatterPlot3D(peakOffsets[:,0], peakOffsets[:,1], freq, [height, width])
     print "GetKDominantOffsets execution time: ", end - start
     return peakOffsets 
 
@@ -142,7 +142,7 @@ def main(imageFile, maskFile):
     cfg.TAU = max(bbwidth, bbheight)/15
     cfg.DEFLAT_FACTOR = image.shape[1]
     sd = GetSearchDomain(image.shape, bb)
-    indices, patches = GetPatches(image, sd, bb)
+    indices, patches = GetPatches(imageR, sd, bb)
     reducedPatches = ReduceDimension(patches)
     offsets = GetOffsets(reducedPatches, indices)
     kDominantOffset = GetKDominantOffsets(offsets, 60, image.shape[0], image.shape[1])
@@ -150,6 +150,9 @@ def main(imageFile, maskFile):
     completedImage, failedPoints, completedPoints = CompleteImage(imageR, sites, mask, kDominantOffset, optimalLabels)
     cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Complete.png", completedImage)
     #cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_CompletedPoints.png", completedPoints)
+    # center = (bb[2]+bbwidth/2, bb[0]+bbheight/2)
+    # blendedImage = PoissonBlending(imageR, mask,center)
+    # cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_blendedImage.png", blendedImage)
     if (np.sum(failedPoints)):
         cv2.imwrite(cfg.OUT_FOLDER + cfg.IMAGE + "_Failed.png", failedPoints)
         main(cfg.OUT_FOLDER + cfg.IMAGE + "_Complete.png", cfg.OUT_FOLDER + cfg.IMAGE + "_Failed.png")
