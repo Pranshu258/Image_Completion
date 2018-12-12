@@ -1,0 +1,63 @@
+Project
+--------------------------------------------------------------------------------------------------------------
+Image Completion using Statistics of Patch Offsets
+
+Papers
+--------------------------------------------------------------------------------------------------------------
+1. Statistics of Patch Offsets for Image Completion, Kaiming He and Jian Sun
+2. Fast Approximate Energy Minimization via Graph Cuts, Yuri Boykov, Olga Veksler and Ramin Zabih
+
+Members
+--------------------------------------------------------------------------------------------------------------
+1. Pranshu Gupta 13493
+2. Abishek Jain 13207
+
+Platform
+--------------------------------------------------------------------------------------------------------------
+Python 3.4
+OpenCV 3.1
+
+Dependencies
+--------------------------------------------------------------------------------------------------------------
+PyMaxFlow
+PyMaxflow is a Python library for graph construction and maxflow computation (commonly known as `graph cuts`). 
+It is available on pip. https://pypi.python.org/pypi/PyMaxflow
+
+Usage
+--------------------------------------------------------------------------------------------------------------
+$ python3 imco.py img.png
+
+The file 'img.png' must be present in a subdirectory named img/ and the mask should be in mask/. 
+Both the img/ and mask/ should be in the same directory as the file 'imco.py'. The output will be produced in 
+the subdirectory res/ with the same name as the image file.
+
+Description of Functions implemented
+--------------------------------------------------------------------------------------------------------------
+1.  get_mask_bb
+    returns the bounding box for the unknown region as provided in the mask image.
+2.  patchmatch
+    implements the random initilaization of patch offsets and iterativly converges them to optimal offsets.
+    [Patch size 8x8, Patch similarity L2 norm of difference between RGB values]
+3.  patch_match
+    finds the best match for each patch and returns a list of offsets. No approximation done.
+4.  peak_offsets. 
+    constructs a 2d histogram of the offsets, applies gaussian filter to smooth the histogram and returns the 
+    best 60 offsets as a list
+5.  D
+    calculates the data term of the MRF energy function for a given pixel and its label.
+6.  V
+    calculates the smoothness term of the MRF energy function for a given pixel and its neighbors with their labels
+7.  energy_calculator
+    computes the MRF energy for a given labelling
+8.  get_neighbors
+    returns the 4 connected neighborhood of a given pixel
+9.  are_neighbors
+    verify if a pair of pixels are 4 connected neighbors
+10. optimize_labels
+    implentation of the alpha-beta swap algorithm for mrf energy minimization. 
+    Utilizes the PyMaxFlow module for Graph oprations
+11. complete
+    returns the completed image for a given labelling
+12. get_validity
+    returns a matrix of 0s and 1s for invalid and valid patches respectively in the image. A valid patch is 8x8 in 
+    size and is entirely inside the known region. The size of the matrix is same as the resolution of the image. 
