@@ -1,5 +1,5 @@
 # Statistics of Patch Offsets for Image Completion
-A Python Implementation: Pranshu Gupta and Shrija Mishra
+A Python Implementation: [Pranshu Gupta](https://github.com/Pranshu258/) and [Shrija Mishra](https://github.com/shrija14/)
 
 ### Introduction
 Content Aware Image Completion is the task of filling the missing part of an image with content like the rest of the image. We have implemented an application that would take an input image and a mask denoting the missing part and give a complete image as the final artifact. One of the best usage of this application can be object removal from images.
